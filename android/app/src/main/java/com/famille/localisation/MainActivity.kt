@@ -12,6 +12,7 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -81,11 +82,35 @@ class MainActivity : AppCompatActivity() {
         setOnClickListener { onClick() }
     }
 
-    // 1) Lien sans invitation ni enrôlement
+    // 1) Lien sans invitation ni enrôlement — saisie manuelle du lien/code
     private fun infoScreen() {
         val r = screen()
         r.addView(title("Localisation famille"))
-        r.addView(body("Ouvre le lien d'invitation envoyé par ton parent pour rejoindre la famille."))
+        r.addView(body("Colle ci-dessous le lien d'invitation envoyé par ton parent, puis appuie sur « Rejoindre la famille »."))
+        val input = EditText(this).apply {
+            hint = "Colle le lien ou le code ici"
+            setTextColor(Color.parseColor("#0F172A"))
+            setHintTextColor(Color.parseColor("#94A3B8"))
+            setSingleLine(false)
+        }
+        r.addView(input)
+        r.addView(primary("Rejoindre la famille") {
+            val token = extractToken(input.text?.toString().orEmpty().trim())
+            if (token.isNullOrEmpty())
+                Toast.makeText(this, "Lien ou code invalide. Recolle le lien complet.", Toast.LENGTH_LONG).show()
+            else { inviteToken = token; render() }   // → écran de consentement
+        })
+    }
+
+    /** Accepte un lien complet (…/enroll?token=XXX) OU un code brut collé seul. */
+    private fun extractToken(raw: String): String? {
+        if (raw.isEmpty()) return null
+        return try {
+            Uri.parse(raw).getQueryParameter("token")
+                ?: if (!raw.contains("/") && !raw.contains("?")) raw else null
+        } catch (e: Exception) {
+            if (!raw.contains("/") && !raw.contains("?")) raw else null
+        }
     }
 
     // 2) Accueil + consentement

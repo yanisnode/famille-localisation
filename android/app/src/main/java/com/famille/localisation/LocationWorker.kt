@@ -7,6 +7,8 @@ import android.os.BatteryManager
 import androidx.core.content.ContextCompat
 import androidx.work.*
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.gms.tasks.Tasks
 import java.util.concurrent.TimeUnit
 
@@ -32,8 +34,14 @@ class LocationWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, param
                 Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return null
         return try {
             val client = LocationServices.getFusedLocationProviderClient(applicationContext)
-            val l = Tasks.await(client.lastLocation) ?: return null
-            l.latitude to l.longitude
+            // 1) position en cache (instantanée)
+            val cached = Tasks.await(client.lastLocation)
+            if (cached != null) return cached.latitude to cached.longitude
+            // 2) sinon on en demande une fraîche (GPS/réseau)
+            val fresh = Tasks.await(
+                client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+            ) ?: return null
+            fresh.latitude to fresh.longitude
         } catch (e: Exception) { null }
     }
 
@@ -45,11 +53,21 @@ class LocationWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, param
 
     companion object {
         private const val WORK = "famille_ping"
+        private const val WORK_NOW = "famille_ping_now"
+
         fun schedule(ctx: Context) {
             val req = PeriodicWorkRequestBuilder<LocationWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()
             WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP, req)
+        }
+
+        /** Envoi immédiat (après enrôlement / reprise du partage) — sans attendre le cycle de 15 min. */
+        fun kickNow(ctx: Context) {
+            val req = OneTimeWorkRequestBuilder<LocationWorker>()
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .build()
+            WorkManager.getInstance(ctx).enqueueUniqueWork(WORK_NOW, ExistingWorkPolicy.REPLACE, req)
         }
     }
 }

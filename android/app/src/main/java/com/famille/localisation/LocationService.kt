@@ -27,7 +27,8 @@ class LocationService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         startForeground(NOTIF_ID, buildNotification())
-        LocationWorker.schedule(applicationContext)   // remontées périodiques, adaptées batterie
+        LocationWorker.kickNow(applicationContext)     // 1er envoi tout de suite
+        LocationWorker.schedule(applicationContext)    // puis remontées périodiques (15 min)
         return START_STICKY
     }
 
