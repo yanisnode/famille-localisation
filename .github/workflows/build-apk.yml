@@ -20,8 +20,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: SDK Android
-        uses: android-actions/setup-android@v3
+      # Pas besoin d'installer le SDK Android : il est déjà présent sur les
+      # serveurs GitHub (ANDROID_HOME/ANDROID_SDK_ROOT pointent dessus, licences
+      # déjà acceptées). On évite ainsi l'étape "setup-android" qui échouait.
+      - name: Vérifier le SDK Android présent
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls "$ANDROID_HOME/platforms" || true
+          ls "$ANDROID_HOME/build-tools" || true
 
       - name: Gradle
         uses: gradle/actions/setup-gradle@v4
