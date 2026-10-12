@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rejoindre la famille</title>
+<style>
+  body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif; margin:0; background:#f8fafc; color:#0f172a; }
+  .wrap { max-width:460px; margin:0 auto; padding:24px 16px; }
+  .card { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:20px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  p { font-size:15px; line-height:1.6; color:#334155; }
+  .muted { color:#64748b; font-size:13px; }
+  .tok { font-family:monospace; font-size:12px; word-break:break-all; background:#f1f5f9; border-radius:8px; padding:8px; }
+  button { font:inherit; border:0; border-radius:10px; padding:12px 16px; width:100%; cursor:pointer; margin-top:12px; }
+  .primary { background:#185fa5; color:#fff; font-weight:600; }
+  .ghost { background:#fff; border:1px solid #cbd5e1; }
+  .ok { color:#0f6e56; font-weight:600; }
+  .err { color:#a32d2d; }
+  ul { padding-left:18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Rejoindre la famille</h1>
+    <p>Ce lien sert à <b>partager ta position avec ta famille</b>, avec ton accord. Tu peux mettre le partage en pause quand tu veux.</p>
+
+    <div id="noapp">
+      <p class="muted">Pour que ça marche en continu, il faudra installer l'application Famille sur ce téléphone (bientôt disponible). En attendant :</p>
+      <div class="muted">Ton code d'invitation :</div>
+      <div class="tok" id="tok">—</div>
+      <button class="primary" onclick="testEnroll()">Tester l'enrôlement maintenant</button>
+      <p class="muted">Ce bouton de test fait apparaître cet appareil dans l'espace parent. Le partage de position réel démarrera avec l'application.</p>
+      <div id="result" style="margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const token = params.get("token") || "";
+document.getElementById("tok").textContent = token || "(aucun code dans le lien)";
+
+async function testEnroll(){
+  const res = document.getElementById("result");
+  if (!token){ res.innerHTML = "<span class='err'>Lien invalide (pas de code).</span>"; return; }
+  res.textContent = "…";
+  try {
+    const r = await fetch("/api/family/enroll/", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ invite_token: token, platform: "web-test" })
+    });
+    const d = await r.json();
+    if (r.status === 201){
+      res.innerHTML = "<span class='ok'>C'est fait ✓</span><br><span class='muted'>Cet appareil (« " +
+        (d.label||"") + " ») apparaît maintenant dans l'espace parent.</span>";
+      document.querySelector(".primary").style.display = "none";
+    } else {
+      res.innerHTML = "<span class='err'>" + (d.detail || "Invitation invalide ou déjà utilisée.") + "</span>";
+    }
+  } catch(e){ res.innerHTML = "<span class='err'>Erreur réseau. Réessaie.</span>"; }
+}
+</script>
+</body>
+</html>

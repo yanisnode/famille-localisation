@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Localisation famille — Parent</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root { --bd:#e2e8f0; --mut:#64748b; --acc:#185fa5; --accbg:#e6f1fb; --warn:#854f0b; --warnbg:#faeeda; --ok:#0f6e56; }
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif; margin:0; color:#0f172a; background:#f8fafc; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#fff; border-bottom:1px solid var(--bd); flex-wrap:wrap; gap:8px; }
+  h1 { font-size:17px; font-weight:600; margin:0; }
+  .sub { font-size:12px; color:var(--mut); }
+  .wrap { max-width:960px; margin:0 auto; padding:16px; }
+  button { font:inherit; border:1px solid #cbd5e1; background:#fff; border-radius:8px; padding:8px 12px; cursor:pointer; }
+  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+  input { font:inherit; border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px; width:100%; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; margin:12px 0; }
+  .card { background:#fff; border:1px solid var(--bd); border-radius:10px; padding:12px; }
+  .card h3 { font-size:14px; margin:0 0 2px; }
+  .muted { color:var(--mut); font-size:12px; }
+  .pill { font-size:11px; padding:2px 8px; border-radius:999px; }
+  .pill.ok { background:var(--accbg); color:var(--acc); }
+  .pill.paused { background:var(--warnbg); color:var(--warn); }
+  .pill.never { background:#f1f5f9; color:var(--mut); }
+  #map { height:300px; border-radius:10px; border:1px solid var(--bd); margin:12px 0; }
+  .hidden { display:none !important; }
+  .modal-bg { position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:16px; }
+  .modal { background:#fff; border-radius:12px; padding:16px; max-width:460px; width:100%; max-height:85vh; overflow:auto; }
+  .applist { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .apptag { border:1px solid var(--bd); border-radius:6px; padding:3px 8px; font-size:12px; }
+  .err { color:#a32d2d; font-size:13px; }
+  a.link { color:var(--acc); cursor:pointer; text-decoration:underline; font-size:12px; }
+</style>
+</head>
+<body>
+
+<!-- CONNEXION -->
+<div id="login" class="wrap">
+  <h1>Localisation famille</h1>
+  <p class="sub">Espace parent. Connecte-toi avec ton compte parent.</p>
+  <div class="card" style="max-width:360px;">
+    <label class="muted">Identifiant</label>
+    <input id="u" autocomplete="username">
+    <label class="muted" style="margin-top:8px;display:block;">Mot de passe</label>
+    <input id="p" type="password" autocomplete="current-password">
+    <div class="row" style="margin-top:12px;justify-content:space-between;">
+      <button class="primary" onclick="login()">Se connecter</button>
+      <span id="loginErr" class="err"></span>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="app" class="hidden">
+  <header>
+    <div>
+      <h1>Localisation famille</h1>
+      <div class="sub">Parent · <span id="who"></span> · réservé au compte parent</div>
+    </div>
+    <div class="row">
+      <button class="primary" onclick="openInvite()">+ Enrôler un enfant</button>
+      <button onclick="logout()">Quitter</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="row">
+      <input id="search" placeholder="Rechercher par numéro — ex. 0782000000" oninput="render()">
+      <button onclick="load()">Rafraîchir</button>
+    </div>
+
+    <div id="cards" class="grid"></div>
+    <div id="map"></div>
+    <p class="muted">Astuce : clique une carte « enfant » pour voir toutes ses applications installées.</p>
+  </div>
+</div>
+
+<!-- MODALE APPS -->
+<div id="appsModal" class="modal-bg hidden">
+  <div class="modal">
+    <div class="row" style="justify-content:space-between;">
+      <h3 id="appsTitle" style="margin:0;"></h3>
+      <button onclick="closeApps()">Fermer</button>
+    </div>
+    <input id="appSearch" placeholder="Filtrer les applications…" oninput="renderApps()" style="margin-top:10px;">
+    <div class="muted" id="appsCount" style="margin-top:8px;"></div>
+    <div id="apps" class="applist"></div>
+  </div>
+</div>
+
+<!-- MODALE INVITATION -->
+<div id="inviteModal" class="modal-bg hidden">
+  <div class="modal">
+    <h3 style="margin-top:0;">Enrôler un enfant</h3>
+    <label class="muted">Nom de l'enfant</label>
+    <input id="invLabel">
+    <label class="muted" style="margin-top:8px;display:block;">Numéro lié</label>
+    <input id="invPhone" placeholder="0782000000">
+    <div class="row" style="margin-top:12px;justify-content:space-between;">
+      <button class="primary" onclick="createInvite()">Créer le lien</button>
+      <button onclick="closeInvite()">Annuler</button>
+    </div>
+    <div id="invResult" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const API = "/api/family";
+let TOKEN = localStorage.getItem("fam_token") || "";
+if (TOKEN === "undefined" || TOKEN === "null") { TOKEN = ""; localStorage.removeItem("fam_token"); }
+let DEVICES = [], MAP = null, MARKERS = [], CURRENT = null;
+
+function h(tok){ return { "Authorization": "Token " + tok, "Content-Type": "application/json" }; }
+
+async function login(){
+  const u = document.getElementById("u").value.trim();
+  const p = document.getElementById("p").value;
+  document.getElementById("loginErr").textContent = "";
+  try {
+    const r = await fetch(API + "/login/", { method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ username:u, password:p }) });
+    if (!r.ok) throw 0;
+    const d = await r.json();
+    TOKEN = d.token; localStorage.setItem("fam_token", TOKEN);
+    start();
+  } catch(e){ document.getElementById("loginErr").textContent = "Identifiant ou mot de passe incorrect."; }
+}
+
+function logout(){ localStorage.removeItem("fam_token"); TOKEN=""; location.reload(); }
+
+async function start(){
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  if (!MAP){ MAP = L.map("map").setView([14.7,-17.4], 11);
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+      { attribution:"Tiles © Esri", maxZoom:19 }).addTo(MAP); }
+  await load();
+}
+
+async function load(){
+  const r = await fetch(API + "/devices/", { headers: h(TOKEN) });
+  if (r.status === 401){ logout(); return; }
+  if (r.status === 403){ document.getElementById("cards").innerHTML =
+    "<p class='err'>Ce compte n'est pas un compte parent.</p>"; return; }
+  DEVICES = await r.json();
+  document.getElementById("who").textContent = (DEVICES.length) + " enfant(s)";
+  render();
+}
+
+function statusPill(s){
+  if (s === "paused") return "<span class='pill paused'>⏸ en pause</span>";
+  if (s === "never") return "<span class='pill never'>jamais vu</span>";
+  return "<span class='pill ok'>● actif</span>";
+}
+
+function render(){
+  const q = (document.getElementById("search").value || "").replace(/\D/g,"");
+  const list = q ? DEVICES.filter(d => (d.phone||"").replace(/\D/g,"").includes(q)) : DEVICES;
+  document.getElementById("cards").innerHTML = list.map(d => `
+    <div class="card" onclick="openApps(${d.id})" style="cursor:pointer;">
+      <div class="row" style="justify-content:space-between;">
+        <h3>${esc(d.label)}</h3>${statusPill(d.status)}
+      </div>
+      <div class="muted">${esc(d.phone||"—")}</div>
+      <div class="muted" style="margin-top:4px;">
+        ${d.status==="paused" ? "Partage coupé par l'enfant"
+          : (d.last_seen_at ? (fmtWhen(d.last_seen_at) + (d.last_battery!=null? " · "+d.last_battery+"%":"")) : "en attente…")}
+      </div>
+      <div style="margin-top:6px;"><a class="link">Voir les applications →</a></div>
+    </div>`).join("") || "<p class='muted'>Aucun enfant. Clique « Enrôler un enfant ».</p>";
+  drawMap(list);
+}
+
+function drawMap(list){
+  if (!MAP) return;
+  MARKERS.forEach(m => MAP.removeLayer(m)); MARKERS = [];
+  const pts = [];
+  list.forEach(d => { if (d.status!=="paused" && d.last_lat!=null && d.last_lon!=null){
+    const m = L.marker([d.last_lat, d.last_lon]).addTo(MAP).bindPopup(esc(d.label));
+    MARKERS.push(m); pts.push([d.last_lat, d.last_lon]);
+  }});
+  if (pts.length) MAP.fitBounds(pts, { padding:[40,40], maxZoom:15 });
+}
+
+// APPS (liste COMPLÈTE + recherche + compteur)
+let CURRENT_APPS = [];
+async function openApps(id){
+  CURRENT = DEVICES.find(d => d.id===id);
+  const r = await fetch(API + "/devices/" + id + "/", { headers: h(TOKEN) });
+  const d = await r.json();
+  CURRENT_APPS = d.apps || [];
+  document.getElementById("appsTitle").textContent = CURRENT.label + " · applications";
+  document.getElementById("appSearch").value = "";
+  document.getElementById("appsModal").classList.remove("hidden");
+  renderApps();
+}
+function renderApps(){
+  const q = (document.getElementById("appSearch").value||"").toLowerCase();
+  const list = CURRENT_APPS.filter(a => (a.name||a.package||"").toLowerCase().includes(q));
+  document.getElementById("appsCount").textContent =
+    CURRENT_APPS.length + " application(s) installée(s)" + (q? " · "+list.length+" trouvée(s)" : "");
+  document.getElementById("apps").innerHTML =
+    list.map(a => `<span class="apptag">${esc(a.name||a.package)}</span>`).join("")
+    || "<span class='muted'>Aucune application remontée pour l'instant.</span>";
+}
+function closeApps(){ document.getElementById("appsModal").classList.add("hidden"); }
+
+// INVITATION
+function openInvite(){ document.getElementById("invResult").innerHTML=""; document.getElementById("inviteModal").classList.remove("hidden"); }
+function closeInvite(){ document.getElementById("inviteModal").classList.add("hidden"); load(); }
+async function createInvite(){
+  const label = document.getElementById("invLabel").value.trim();
+  const phone = document.getElementById("invPhone").value.trim();
+  if (!label){ document.getElementById("invResult").innerHTML="<span class='err'>Nom requis.</span>"; return; }
+  const r = await fetch(API + "/invites/", { method:"POST", headers:h(TOKEN), body: JSON.stringify({ child_label:label, phone }) });
+  if (r.status === 401 || r.status === 403) {
+    document.getElementById("invResult").innerHTML = "<span class='err'>Session expirée. Clique « Quitter » puis reconnecte-toi.</span>";
+    return;
+  }
+  const d = await r.json();
+  if (!d.token) { document.getElementById("invResult").innerHTML = "<span class='err'>Erreur : " + esc(d.detail || "jeton manquant") + "</span>"; return; }
+  const link = location.origin + "/enroll?token=" + d.token;
+  document.getElementById("invResult").innerHTML =
+    "<div class='muted'>Envoie ce lien à l'enfant (il l'ouvre pour accepter) :</div>" +
+    "<div class='apptag' style='margin-top:6px;word-break:break-all;'>" + esc(link) + "</div>";
+}
+
+function esc(s){ return (s==null?"":String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtWhen(iso){ const d=new Date(iso), s=Math.round((Date.now()-d)/1000);
+  if (s<60) return "à l'instant"; if (s<3600) return "il y a "+Math.round(s/60)+" min";
+  if (s<86400) return "il y a "+Math.round(s/3600)+" h"; return d.toLocaleString(); }
+
+if (TOKEN) start();
+</script>
+</body>
+</html>

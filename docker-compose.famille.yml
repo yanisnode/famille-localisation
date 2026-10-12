@@ -1,0 +1,36 @@
+# Localisation famille — pile SÉPARÉE, sur le MÊME VPS que wifimobiletv.
+# Se greffe au réseau Docker existant pour que le Caddy de wifimobiletv
+# serve famille.wifimobiletv.com → famille-backend:8000.
+#   docker compose -f docker-compose.famille.yml up -d --build
+services:
+  famille-db:
+    image: postgres:16-alpine
+    container_name: famille-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-famille}
+      POSTGRES_USER: ${POSTGRES_USER:-famille}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?mot de passe requis}
+    volumes:
+      - famille_db:/var/lib/postgresql/data
+    networks: [wifimobiletv]
+
+  famille-backend:
+    build: ./backend
+    container_name: famille-backend
+    restart: unless-stopped
+    env_file: .env.famille
+    volumes:
+      - ./backend/templates:/app/templates:ro   # pages éditables sans rebuild (scp + restart)
+    depends_on: [famille-db]
+    expose: ["8000"]
+    networks: [wifimobiletv]
+
+volumes:
+  famille_db:
+
+# Réseau EXISTANT de wifimobiletv (vérifier le nom avec: docker network ls).
+networks:
+  wifimobiletv:
+    external: true
+    name: wifimobiletv_wifimobiletv

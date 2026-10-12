@@ -1,0 +1,15 @@
+# Python / Django
+__pycache__/
+*.pyc
+db.sqlite3
+staticfiles/
+.env.famille
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk
+# Divers
+*.log

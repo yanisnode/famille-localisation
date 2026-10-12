@@ -1,0 +1,22 @@
+# ─────────────────────────────────────────────────────────────
+# Localisation famille (sous-domaine séparé, même VPS)
+# À coller à la fin de infra/Caddyfile de wifimobiletv.
+# ─────────────────────────────────────────────────────────────
+famille.wifimobiletv.com {
+	encode gzip
+
+	# App Links Android : fichier de vérification servi par le backend.
+	handle /.well-known/assetlinks.json {
+		reverse_proxy famille-backend:8000
+	}
+	# Universal Links iOS : idem.
+	handle /.well-known/apple-app-site-association {
+		reverse_proxy famille-backend:8000
+	}
+
+	# Tout le reste (API + dashboard parent /parent/).
+	reverse_proxy famille-backend:8000 {
+		lb_try_duration 20s
+		lb_try_interval 500ms
+	}
+}

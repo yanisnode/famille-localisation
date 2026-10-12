@@ -1,0 +1,23 @@
+<!-- Extrait Info.plist : textes de permission (obligatoires) + Universal Links + tâche de fond.
+     Les descriptions expliquent clairement à l'enfant pourquoi la position est demandée. -->
+<dict>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Ta position est partagée avec ta famille pendant que tu utilises l'app.</string>
+  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+  <string>Choisis « Toujours » pour que ta famille voie ta position même quand l'app est fermée. Tu peux mettre en pause à tout moment.</string>
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>location</string>
+    <string>fetch</string>
+    <string>processing</string>
+  </array>
+  <key>BGTaskSchedulerPermittedIdentifiers</key>
+  <array>
+    <string>com.famille.localisation.refresh</string>
+  </array>
+  <!-- Universal Links : associés au domaine via le fichier apple-app-site-association (ci-dessous). -->
+  <key>com.apple.developer.associated-domains</key>
+  <array>
+    <string>applinks:famille.wifimobiletv.com</string>
+  </array>
+</dict>
